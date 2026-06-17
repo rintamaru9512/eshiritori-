@@ -3,8 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>絵しりとりバトル (制限時間60秒版)</title>
-    <!-- PeerJS Library -->
+    <title>絵しりとりバトル (同期修正版)</title>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     
     <style>
@@ -344,7 +343,6 @@
 </head>
 <body>
     <div id="app" class="container">
-        <!-- 1. 初期・ロビー画面 -->
         <div id="screen-lobby" class="screen">
             <h1>🎨 絵しりとりバトル 🎨</h1>
             <p class="subtitle">HTML/JS P2P Online Game</p>
@@ -365,7 +363,6 @@
                 </div>
             </div>
 
-            <!-- 待機室 (接続後表示) -->
             <div id="lobby-room-info" class="card hidden">
                 <div class="share-url-container">
                     <span class="label">招待URL:</span>
@@ -385,10 +382,8 @@
             </div>
         </div>
 
-        <!-- 2. ゲームメイン画面 -->
         <div id="screen-game" class="screen hidden">
             <header class="game-header">
-                <!-- 初期表示のタイマーも60に変更 -->
                 <div class="timer-badge">⏳ <span id="game-timer">60</span>s</div>
                 <div class="status-badge" id="player-status-badge">状態: 待機中</div>
             </header>
@@ -444,7 +439,6 @@
             </main>
         </div>
 
-        <!-- 3. リザルト画面 -->
         <div id="screen-result" class="screen hidden">
             <div class="card text-center result-card">
                 <h1 class="winner-title">👑 🏆 優勝 👑</h1>
@@ -472,7 +466,6 @@
         </div>
     </div>
 
-    <!-- --- ゲームロジック (JavaScript) --- -->
     <script>
         const state = {
             peer: null,
@@ -490,7 +483,7 @@
             prevCanvasData: '',
             prevRealWord: '',         
             revealMessage: '',        
-            timer: 60,               // 制限時間を60秒に変更
+            timer: 60,               
             timerId: null,
             history: [],
             eliminations: []
@@ -607,6 +600,9 @@
 
         function setupHostReceiver() {
             state.peer.on('connection', (conn) => {
+                // 【修正】接続が確立された時点でまずホスト側の管理下に登録（データ受信を漏らさないため）
+                state.connections[conn.peer] = conn;
+
                 conn.on('data', (data) => { handleDataAsHost(conn, data); });
                 conn.on('close', () => {
                     state.players = state.players.filter(p => p.id !== conn.peer);
@@ -626,10 +622,15 @@
                 case 'JOIN':
                     if (state.players.length >= 8) { conn.send({ type: 'ERROR', message: '満員です' }); return; }
                     if (state.gameState !== 'lobby') { conn.send({ type: 'ERROR', message: '開始済です' }); return; }
-                    state.connections[conn.peer] = conn;
-                    state.players.push({ id: conn.peer, name: data.name, alive: true, isHost: false });
-                    broadcastState();
+                    
+                    // 重複を防ぎつつ追加
+                    if (!state.players.some(p => p.id === conn.peer)) {
+                        state.players.push({ id: conn.peer, name: data.name, alive: true, isHost: false });
+                    }
+                    
+                    // 【修正】新メンバー追加直後に、ホスト自身の画面更新と全員への同期を即実行
                     updateLobbyDOM();
+                    broadcastState();
                     break;
                 case 'SUBMIT_TURN': processTurnSubmission(conn.peer, data.word, data.canvasData); break;
                 case 'DRAW_LINE': broadcastToAll({ type: 'DRAW_LINE', ...data }); break;
@@ -760,7 +761,7 @@
             state.history = []; state.eliminations = []; state.prevRealWord = ''; state.revealMessage = '';
             state.players.forEach(p => p.alive = true);
             ctx.clearRect(0, 0, D.canvas.width, D.canvas.height); 
-            startTimer(60, () => { handleTimeOut(); }); // 30から60秒に変更
+            startTimer(60, () => { handleTimeOut(); }); 
             broadcastState();
         }
 
@@ -818,7 +819,7 @@
             if (state.players.filter(p => p.alive).length <= 1) { endGame(); return; }
             do { state.turnIndex = (state.turnIndex + 1) % state.players.length; } while (!state.players[state.turnIndex].alive);
             state.gamePhase = 'answer';
-            startTimer(60, () => { handleTimeOut(); }); // 30から60秒に変更
+            startTimer(60, () => { handleTimeOut(); }); 
             broadcastState();
         }
 
@@ -862,7 +863,7 @@
                     state.revealMessage = `⭕ 正解！ 前の絵は「${state.prevRealWord}」でした。続けて絵を描いてください！`;
                     state.gamePhase = 'draw';
                     state.currentClueLetter = getEndCharacter(normalizedWord);
-                    startTimer(60, () => { handleTimeOut(); }); // 30から60秒に変更
+                    startTimer(60, () => { handleTimeOut(); }); 
                     broadcastState();
                 } else if (state.gamePhase === 'draw') {
                     if (normalizedWord.charAt(0) !== state.currentClueLetter) {
@@ -890,6 +891,7 @@
             return last;
         }
 
+        // --- キャンバス描画制御 ---
         function initCanvasEvents() {
             D.canvas.addEventListener('mousedown', startDrawing);
             D.canvas.addEventListener('mousemove', draw);
