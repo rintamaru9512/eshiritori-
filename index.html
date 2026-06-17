@@ -3,11 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>絵しりとりバトル (セキュア完全版)</title>
+    <title>絵しりとりバトル (制限時間60秒版)</title>
+    <!-- PeerJS Library -->
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     
     <style>
-        /* --- デザインシステム & ダークモード最優先定義 --- */
+        /* --- デザインシステム & ダークモード定義 --- */
         :root {
             --bg-main: #121214;
             --bg-card: #1e1e24;
@@ -86,9 +87,11 @@
         .btn-primary:hover { background: var(--primary-hover); }
         .btn-success { background: var(--success); color: white; }
         .btn-danger { background: var(--danger); color: white; }
+        .btn-warning { background: var(--warning); color: black; }
         .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--text-main); }
         .btn-sm { padding: 6px 12px; font-size: 0.85rem; }
         .btn-block { width: 100%; display: flex; }
+        .mt-4 { margin-top: 16px; }
 
         .input-group {
             margin-bottom: 15px;
@@ -189,6 +192,27 @@
             font-weight: bold;
             text-align: center;
             margin-bottom: 15px;
+        }
+
+        .reveal-box {
+            background: #2e1e1e;
+            border: 2px dashed var(--danger);
+            color: #fca5a5;
+            padding: 10px;
+            border-radius: 8px;
+            text-align: center;
+            margin-bottom: 15px;
+            font-weight: bold;
+        }
+        .hint-box {
+            background: #1e293b;
+            border: 1px solid #38bdf8;
+            color: #7dd3fc;
+            padding: 8px;
+            border-radius: 8px;
+            text-align: center;
+            margin-bottom: 10px;
+            font-size: 1.1rem;
         }
 
         .canvas-wrapper {
@@ -320,6 +344,7 @@
 </head>
 <body>
     <div id="app" class="container">
+        <!-- 1. 初期・ロビー画面 -->
         <div id="screen-lobby" class="screen">
             <h1>🎨 絵しりとりバトル 🎨</h1>
             <p class="subtitle">HTML/JS P2P Online Game</p>
@@ -340,6 +365,7 @@
                 </div>
             </div>
 
+            <!-- 待機室 (接続後表示) -->
             <div id="lobby-room-info" class="card hidden">
                 <div class="share-url-container">
                     <span class="label">招待URL:</span>
@@ -359,9 +385,11 @@
             </div>
         </div>
 
+        <!-- 2. ゲームメイン画面 -->
         <div id="screen-game" class="screen hidden">
             <header class="game-header">
-                <div class="timer-badge">⏳ <span id="game-timer">30</span>s</div>
+                <!-- 初期表示のタイマーも60に変更 -->
+                <div class="timer-badge">⏳ <span id="game-timer">60</span>s</div>
                 <div class="status-badge" id="player-status-badge">状態: 待機中</div>
             </header>
 
@@ -371,8 +399,11 @@
                         お題を考えて絵を描いてください！
                     </div>
 
+                    <div id="reveal-answer-box" class="reveal-box hidden"></div>
+
                     <div id="prev-canvas-container" class="canvas-wrapper hidden">
                         <p class="canvas-title">前のプレイヤーが描いた絵 👇</p>
+                        <div id="word-length-hint" class="hint-box"></div>
                         <img id="prev-canvas-image" src="" alt="前の人の絵">
                     </div>
 
@@ -413,6 +444,7 @@
             </main>
         </div>
 
+        <!-- 3. リザルト画面 -->
         <div id="screen-result" class="screen hidden">
             <div class="card text-center result-card">
                 <h1 class="winner-title">👑 🏆 優勝 👑</h1>
@@ -428,11 +460,19 @@
                 <h3>💀 脱落順位</h3>
                 <ul id="elimination-list" class="elimination-list"></ul>
 
-                <button id="btn-return-lobby" class="btn btn-primary mt-4">ロビーへ戻る</button>
+                <div id="host-restart-area" class="hidden">
+                    <button id="btn-restart-game" class="btn btn-warning btn-block mt-4">同じメンバーでもう一度遊ぶ 🔄</button>
+                </div>
+                <div id="guest-restart-area">
+                    <p class="animate-pulse mt-4" style="color:var(--text-muted)">ホストが再戦を選択するのを待っています...</p>
+                </div>
+                
+                <button id="btn-exit-lobby" class="btn btn-outline mt-4">タイトルに戻る (退室)</button>
             </div>
         </div>
     </div>
 
+    <!-- --- ゲームロジック (JavaScript) --- -->
     <script>
         const state = {
             peer: null,
@@ -448,7 +488,9 @@
             turnIndex: 0,
             currentClueLetter: '',
             prevCanvasData: '',
-            timer: 30,
+            prevRealWord: '',         
+            revealMessage: '',        
+            timer: 60,               // 制限時間を60秒に変更
             timerId: null,
             history: [],
             eliminations: []
@@ -472,6 +514,8 @@
             timer: document.getElementById('game-timer'),
             statusBadge: document.getElementById('player-status-badge'),
             instruction: document.getElementById('game-instruction'),
+            revealAnswerBox: document.getElementById('reveal-answer-box'), 
+            wordLengthHint: document.getElementById('word-length-hint'),   
             prevCanvasContainer: document.getElementById('prev-canvas-container'),
             prevCanvasImage: document.getElementById('prev-canvas-image'),
             currentCanvasContainer: document.getElementById('current-canvas-container'),
@@ -488,7 +532,10 @@
             winnerName: document.getElementById('winner-name'),
             historyTimeline: document.getElementById('history-timeline'),
             eliminationList: document.getElementById('elimination-list'),
-            btnReturnLobby: document.getElementById('btn-return-lobby')
+            hostRestartArea: document.getElementById('host-restart-area'), 
+            guestRestartArea: document.getElementById('guest-restart-area'), 
+            btnRestartGame: document.getElementById('btn-restart-game'),     
+            btnExitLobby: document.getElementById('btn-exit-lobby')
         };
 
         const ctx = D.canvas.getContext('2d');
@@ -515,20 +562,18 @@
             D.btnStart.addEventListener('click', () => hostStartGame());
             D.btnSubmit.addEventListener('click', submitTurnAction);
             D.btnClearCanvas.addEventListener('click', clearCanvasAndSync);
-            D.btnReturnLobby.addEventListener('click', () => location.reload());
+            D.btnRestartGame.addEventListener('click', () => hostRestartGame()); 
+            D.btnExitLobby.addEventListener('click', () => location.reload());
         }
 
         function initPeer(callback) {
             state.myName = D.inputName.value.trim() || '名無しプレイヤー' + Math.floor(Math.random()*1000);
-            
-            // GitHub Pages(HTTPS)環境でも動作するように明示的に暗号化サーバーを指定
             state.peer = new Peer({
                 debug: 1,
                 host: '0.peerjs.com',
                 port: 443,
                 secure: true
             });
-            
             state.peer.on('open', (id) => { state.myId = id; callback(); });
             state.peer.on('error', (err) => { alert('通信エラー: ' + err.type); });
         }
@@ -598,8 +643,9 @@
                 case 'SYNC_STATE':
                     state.players = data.players; state.gameState = data.gameState; state.gamePhase = data.gamePhase;
                     state.turnIndex = data.turnIndex; state.currentClueLetter = data.currentClueLetter;
-                    state.prevCanvasData = data.prevCanvasData; state.timer = data.timer;
-                    state.history = data.history; state.eliminations = data.eliminations;
+                    state.prevCanvasData = data.prevCanvasData; state.prevRealWord = data.prevRealWord; 
+                    state.revealMessage = data.revealMessage; 
+                    state.timer = data.timer; state.history = data.history; state.eliminations = data.eliminations;
                     syncUI(); break;
                 case 'DRAW_LINE': if (getActivePlayer().id !== state.myId) { drawRemoteLine(data); } break;
                 case 'CLEAR_CANVAS': if (getActivePlayer().id !== state.myId) { ctx.clearRect(0, 0, D.canvas.width, D.canvas.height); } break;
@@ -610,12 +656,14 @@
             broadcastToAll({
                 type: 'SYNC_STATE', players: state.players, gameState: state.gameState, gamePhase: state.gamePhase,
                 turnIndex: state.turnIndex, currentClueLetter: state.currentClueLetter, prevCanvasData: state.prevCanvasData,
+                prevRealWord: state.prevRealWord, revealMessage: state.revealMessage, 
                 timer: state.timer, history: state.history, eliminations: state.eliminations
             });
             syncUI();
         }
 
         function showLobbyUI() {
+            D.lobbyScreen.classList.remove('hidden'); D.gameScreen.classList.add('hidden'); D.resultScreen.classList.add('hidden'); 
             D.btnCreate.disabled = true; D.btnJoin.disabled = true; D.roomInfo.classList.remove('hidden');
             D.shareUrl.value = `${window.location.origin}${window.location.pathname}?room=${state.roomId}`;
             if (state.isHost) { D.hostControls.classList.remove('hidden'); D.guestControls.classList.add('hidden'); }
@@ -637,7 +685,7 @@
         function copyShareUrl() { D.shareUrl.select(); document.execCommand('copy'); alert('招待URLをコピーしました！'); }
 
         function syncUI() {
-            if (state.gameState === 'lobby') { updateLobbyDOM(); return; }
+            if (state.gameState === 'lobby') { showLobbyUI(); return; } 
             if (state.gameState === 'result') { showResultScreen(); return; }
             D.lobbyScreen.classList.add('hidden'); D.gameScreen.classList.remove('hidden');
             D.timer.textContent = state.timer;
@@ -656,11 +704,19 @@
             });
             const isMyTurn = (activePlayer && activePlayer.id === state.myId && me && me.alive);
 
+            if (state.revealMessage) {
+                D.revealAnswerBox.textContent = state.revealMessage;
+                D.revealAnswerBox.classList.remove('hidden');
+            } else {
+                D.revealAnswerBox.classList.add('hidden');
+            }
+
             if (state.turnIndex === 0) {
                 D.prevCanvasContainer.classList.add('hidden'); D.currentCanvasContainer.classList.remove('hidden');
                 if (isMyTurn) {
                     D.instruction.textContent = '【最初の手番】お題を決めて絵を描き、その答えを入力してください！';
                     D.canvasTools.classList.remove('hidden'); D.inputArea.classList.remove('hidden');
+                    D.wordInput.placeholder = "最初のお題（例：りんご）";
                 } else {
                     D.instruction.textContent = `${activePlayer.name}さんが最初のお題を描いています...`;
                     D.canvasTools.classList.add('hidden'); D.inputArea.classList.add('hidden');
@@ -669,9 +725,15 @@
                 if (state.gamePhase === 'answer') {
                     D.prevCanvasContainer.classList.remove('hidden'); D.prevCanvasImage.src = state.prevCanvasData || '';
                     D.currentCanvasContainer.classList.add('hidden');
+                    
+                    if (state.prevRealWord) {
+                        const len = state.prevRealWord.length;
+                        D.wordLengthHint.textContent = `ヒント: 「${state.currentClueLetter}」から始まる ${len} 文字の言葉 ( ${state.currentClueLetter}${'〇'.repeat(len-1)} )`;
+                    }
+
                     if (isMyTurn) {
                         D.instruction.textContent = `前の絵を推測して回答！(頭文字は「${state.currentClueLetter}」)`;
-                        D.inputArea.classList.remove('hidden'); D.wordInput.placeholder = `「${state.currentClueLetter}」から始まる言葉`;
+                        D.inputArea.classList.remove('hidden'); D.wordInput.placeholder = `「${state.currentClueLetter}」から始まる言葉を入力`;
                     } else {
                         D.instruction.textContent = `${activePlayer.name}さんが前の絵を推測して回答中...`;
                         D.inputArea.classList.add('hidden');
@@ -679,7 +741,7 @@
                 } else if (state.gamePhase === 'draw') {
                     D.prevCanvasContainer.classList.add('hidden'); D.currentCanvasContainer.classList.remove('hidden');
                     if (isMyTurn) {
-                        D.instruction.textContent = `正解！「${state.currentClueLetter}」から始まる絵を描き、答えを入力してください！`;
+                        D.instruction.textContent = `正解！次は「${state.currentClueLetter}」から始まる絵を描き、答えを入力してください！`;
                         D.canvasTools.classList.remove('hidden'); D.inputArea.classList.remove('hidden');
                         D.wordInput.placeholder = `「${state.currentClueLetter}」から始まる絵の答え`;
                     } else {
@@ -694,9 +756,24 @@
 
         function hostStartGame() {
             if (state.players.length < 2) return alert('最低2人のプレイヤーが必要です。');
-            state.gameState = 'game'; state.gamePhase = 'draw'; state.turnIndex = 0; state.history = []; state.eliminations = [];
+            state.gameState = 'game'; state.gamePhase = 'draw'; state.turnIndex = 0; 
+            state.history = []; state.eliminations = []; state.prevRealWord = ''; state.revealMessage = '';
             state.players.forEach(p => p.alive = true);
-            startTimer(30, () => { handleTimeOut(); });
+            ctx.clearRect(0, 0, D.canvas.width, D.canvas.height); 
+            startTimer(60, () => { handleTimeOut(); }); // 30から60秒に変更
+            broadcastState();
+        }
+
+        function hostRestartGame() {
+            state.gameState = 'lobby';
+            state.gamePhase = 'init';
+            state.turnIndex = 0;
+            state.prevRealWord = '';
+            state.revealMessage = '';
+            state.history = [];
+            state.eliminations = [];
+            state.players.forEach(p => p.alive = true);
+            clearInterval(state.timerId);
             broadcastState();
         }
 
@@ -708,6 +785,7 @@
                     broadcastToAll({
                         type: 'SYNC_STATE', players: state.players, gameState: state.gameState, gamePhase: state.gamePhase,
                         turnIndex: state.turnIndex, currentClueLetter: state.currentClueLetter, prevCanvasData: state.prevCanvasData,
+                        prevRealWord: state.prevRealWord, revealMessage: state.revealMessage,
                         timer: state.timer, history: state.history, eliminations: state.eliminations
                     });
                 }
@@ -715,14 +793,20 @@
             }, 1000);
         }
 
-        function handleTimeOut() { const activePlayer = getActivePlayer(); if (activePlayer) eliminatePlayer(activePlayer.id, "時間切れ"); }
+        function handleTimeOut() { 
+            const activePlayer = getActivePlayer(); 
+            if (activePlayer) {
+                const revealAnswerStr = state.prevRealWord ? ` (正解は「${state.prevRealWord}」でした)` : '';
+                eliminatePlayer(activePlayer.id, `時間切れ${revealAnswerStr}`); 
+            } 
+        }
 
         function eliminatePlayer(id, reason) {
             const player = state.players.find(p => p.id === id);
             if (player && player.alive) {
                 player.alive = false;
                 state.eliminations.unshift(`${player.name} (${reason})`);
-                alert(`${player.name} さんが脱落しました (${reason})`);
+                alert(`${player.name} さんが脱落しました\n理由: ${reason}`);
                 if (checkGameEndCondition()) { endGame(); } else { advanceTurn(); }
             }
         }
@@ -734,7 +818,7 @@
             if (state.players.filter(p => p.alive).length <= 1) { endGame(); return; }
             do { state.turnIndex = (state.turnIndex + 1) % state.players.length; } while (!state.players[state.turnIndex].alive);
             state.gamePhase = 'answer';
-            startTimer(30, () => { handleTimeOut(); });
+            startTimer(60, () => { handleTimeOut(); }); // 30から60秒に変更
             broadcastState();
         }
 
@@ -762,26 +846,31 @@
             if (state.turnIndex === 0) {
                 state.currentClueLetter = getEndCharacter(normalizedWord);
                 state.prevCanvasData = canvasData;
+                state.prevRealWord = rawWord; 
+                state.revealMessage = `【最初のお題】${activePlayer.name}さんが絵を描きました！末尾は「${state.currentClueLetter}」です。`;
                 state.history.push({ word: rawWord, player: activePlayer.name, img: canvasData });
                 advanceTurn();
             } else {
                 if (state.gamePhase === 'answer') {
                     if (normalizedWord.charAt(0) !== state.currentClueLetter) {
-                        eliminatePlayer(activePlayer.id, `「${state.currentClueLetter}」から始まっていません`); return;
+                        eliminatePlayer(activePlayer.id, `「${state.currentClueLetter}」から始まっていません (正解は: ${state.prevRealWord})`); return;
                     }
-                    const lastHistoryItem = state.history[state.history.length - 1];
-                    if (normalizedWord !== normalizeWord(lastHistoryItem.word)) {
-                        eliminatePlayer(activePlayer.id, `不正解！(正解は: ${lastHistoryItem.word})`); return;
+                    if (normalizedWord !== normalizeWord(state.prevRealWord)) {
+                        eliminatePlayer(activePlayer.id, `不正解！ (前の人の正解は: ${state.prevRealWord})`); return;
                     }
+                    
+                    state.revealMessage = `⭕ 正解！ 前の絵は「${state.prevRealWord}」でした。続けて絵を描いてください！`;
                     state.gamePhase = 'draw';
                     state.currentClueLetter = getEndCharacter(normalizedWord);
-                    startTimer(30, () => { handleTimeOut(); });
+                    startTimer(60, () => { handleTimeOut(); }); // 30から60秒に変更
                     broadcastState();
                 } else if (state.gamePhase === 'draw') {
                     if (normalizedWord.charAt(0) !== state.currentClueLetter) {
-                        eliminatePlayer(activePlayer.id, `「${state.currentClueLetter}」の絵ではありません`); return;
+                        eliminatePlayer(activePlayer.id, `「${state.currentClueLetter}」のルールに沿っていません`); return;
                     }
                     state.prevCanvasData = canvasData;
+                    state.prevRealWord = rawWord; 
+                    state.revealMessage = `🎨 ${activePlayer.name}さんが新しい絵を描きました！末尾は「${getEndCharacter(normalizedWord)}」です。`;
                     state.history.push({ word: rawWord, player: activePlayer.name, img: canvasData });
                     advanceTurn();
                 }
@@ -852,6 +941,15 @@
             D.lobbyScreen.classList.add('hidden'); D.gameScreen.classList.add('hidden'); D.resultScreen.classList.remove('hidden');
             const alivePlayers = state.players.filter(p => p.alive);
             D.winnerName.textContent = alivePlayers.length > 0 ? alivePlayers[0].name : "なし (全員脱落)";
+            
+            if (state.isHost) {
+                D.hostRestartArea.classList.remove('hidden');
+                D.guestRestartArea.classList.add('hidden');
+            } else {
+                D.hostRestartArea.classList.add('hidden');
+                D.guestRestartArea.classList.remove('hidden');
+            }
+
             D.historyTimeline.innerHTML = '';
             state.history.forEach((h, index) => {
                 const item = document.createElement('div'); item.className = 'timeline-item';
