@@ -3,23 +3,23 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>絵しりとりバトル (同期修正版)</title>
+    <title>絵しりとりバトル (グリーンデザイン版)</title>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     
     <style>
-        /* --- デザインシステム & ダークモード定義 --- */
+        /* --- デザインシステム & ダークモード定義 (背景を緑に調整) --- */
         :root {
-            --bg-main: #121214;
-            --bg-card: #1e1e24;
-            --bg-input: #2a2a32;
+            --bg-main: #14241c;       /* 深いダークグリーン */
+            --bg-card: #1c3227;       /* 少し明るい緑色のカード */
+            --bg-input: #264234;      /* 入力欄の緑色 */
             --text-main: #f3f4f6;
-            --text-muted: #9ca3af;
-            --primary: #6366f1;
-            --primary-hover: #4f46e5;
+            --text-muted: #a3b899;    /* 緑に馴染むくすみテキスト */
+            --primary: #4ade80;       /* 明るいグリーン（プライマリ） */
+            --primary-hover: #22c55e;
             --success: #10b981;
-            --danger: #ef4444;
-            --warning: #f59e0b;
-            --border: #374151;
+            --danger: #f87171;
+            --warning: #fbbf24;
+            --border: #2d523f;        /* 緑系の枠線 */
             --radius: 12px;
             --font: 'Helvetica Neue', Arial, 'Hiragino Kaku Gothic ProN', sans-serif;
         }
@@ -56,7 +56,7 @@
             padding: 20px;
             margin-bottom: 20px;
             border: 1px solid var(--border);
-            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.3);
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.4);
         }
         .divider {
             text-align: center;
@@ -82,10 +82,10 @@
             align-items: center;
             justify-content: center;
         }
-        .btn-primary { background: var(--primary); color: white; }
-        .btn-primary:hover { background: var(--primary-hover); }
+        .btn-primary { background: var(--primary); color: #14241c; }
+        .btn-primary:hover { background: var(--primary-hover); color: white; }
         .btn-success { background: var(--success); color: white; }
-        .btn-danger { background: var(--danger); color: white; }
+        .btn-danger { background: var(--danger); color: #14241c; font-weight: bold; }
         .btn-warning { background: var(--warning); color: black; }
         .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--text-main); }
         .btn-sm { padding: 6px 12px; font-size: 0.85rem; }
@@ -133,7 +133,7 @@
             flex: 1;
             border: none;
             background: transparent;
-            color: var(--success);
+            color: var(--primary);
             font-family: monospace;
         }
         .player-list {
@@ -157,11 +157,12 @@
             background: var(--bg-card);
             padding: 12px 20px;
             border-radius: var(--radius);
+            border: 1px solid var(--border);
         }
         .timer-badge {
             font-size: 1.5rem;
             font-weight: bold;
-            color: var(--danger);
+            color: #fca5a5;
         }
         .status-badge {
             background: var(--bg-input);
@@ -183,8 +184,9 @@
         }
 
         .instruction-box {
-            background: var(--primary);
-            color: white;
+            background: var(--bg-input);
+            color: var(--primary);
+            border: 2px solid var(--primary);
             padding: 15px;
             border-radius: var(--radius);
             font-size: 1.2rem;
@@ -194,7 +196,7 @@
         }
 
         .reveal-box {
-            background: #2e1e1e;
+            background: #3b2222;
             border: 2px dashed var(--danger);
             color: #fca5a5;
             padding: 10px;
@@ -290,7 +292,7 @@
             padding: 8px 0;
             border-bottom: 1px solid var(--border);
         }
-        .status-alive { color: var(--success); font-weight: bold; }
+        .status-alive { color: #4ade80; font-weight: bold; }
         .status-dead { color: var(--danger); text-decoration: line-through; opacity: 0.6; }
 
         .animate-pulse {
@@ -367,7 +369,7 @@
                 <div class="share-url-container">
                     <span class="label">招待URL:</span>
                     <input type="text" id="share-url" readonly>
-                    <button id="btn-copy-url" class="btn btn-sm">コピー</button>
+                    <button id="btn-copy-url" class="btn btn-sm btn-outline">コピー</button>
                 </div>
                 
                 <h3>参加プレイヤー一覧 (<span id="current-player-count">0</span>/8)</h3>
@@ -600,7 +602,6 @@
 
         function setupHostReceiver() {
             state.peer.on('connection', (conn) => {
-                // 【修正】接続が確立された時点でまずホスト側の管理下に登録（データ受信を漏らさないため）
                 state.connections[conn.peer] = conn;
 
                 conn.on('data', (data) => { handleDataAsHost(conn, data); });
@@ -623,12 +624,10 @@
                     if (state.players.length >= 8) { conn.send({ type: 'ERROR', message: '満員です' }); return; }
                     if (state.gameState !== 'lobby') { conn.send({ type: 'ERROR', message: '開始済です' }); return; }
                     
-                    // 重複を防ぎつつ追加
                     if (!state.players.some(p => p.id === conn.peer)) {
                         state.players.push({ id: conn.peer, name: data.name, alive: true, isHost: false });
                     }
                     
-                    // 【修正】新メンバー追加直後に、ホスト自身の画面更新と全員への同期を即実行
                     updateLobbyDOM();
                     broadcastState();
                     break;
@@ -695,7 +694,7 @@
             const me = state.players.find(p => p.id === state.myId);
             if (me) {
                 D.statusBadge.textContent = me.alive ? '状態: プレイ中 🟢' : '状態: 観戦モード 👀';
-                D.statusBadge.style.color = me.alive ? 'var(--success)' : 'var(--text-muted)';
+                D.statusBadge.style.color = 'var(--primary)';
             }
             D.gameMemberList.innerHTML = '';
             state.players.forEach(p => {
@@ -891,7 +890,6 @@
             return last;
         }
 
-        // --- キャンバス描画制御 ---
         function initCanvasEvents() {
             D.canvas.addEventListener('mousedown', startDrawing);
             D.canvas.addEventListener('mousemove', draw);
