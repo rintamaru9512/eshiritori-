@@ -3,964 +3,514 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>絵しりとりバトル (グリーンデザイン版)</title>
-    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
-    
+    <title>東海ポーカーサービっす</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
     <style>
-        /* --- デザインシステム & ダークモード定義 (背景を緑に調整) --- */
-        :root {
-            --bg-main: #14241c;       /* 深いダークグリーン */
-            --bg-card: #1c3227;       /* 少し明るい緑色のカード */
-            --bg-input: #264234;      /* 入力欄の緑色 */
-            --text-main: #f3f4f6;
-            --text-muted: #a3b899;    /* 緑に馴染むくすみテキスト */
-            --primary: #4ade80;       /* 明るいグリーン（プライマリ） */
-            --primary-hover: #22c55e;
-            --success: #10b981;
-            --danger: #f87171;
-            --warning: #fbbf24;
-            --border: #2d523f;        /* 緑系の枠線 */
-            --radius: 12px;
-            --font: 'Helvetica Neue', Arial, 'Hiragino Kaku Gothic ProN', sans-serif;
-        }
-
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-        }
-
-        body {
-            background-color: var(--bg-main);
-            color: var(--text-main);
-            font-family: var(--font);
-            line-height: 1.5;
-            padding: 10px;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-        }
-
-        .container {
-            width: 100%;
-            max-width: 1000px;
-            margin: 0 auto;
-        }
-
-        .hidden { display: none !important; }
-        .text-center { text-align: center; }
-        .card {
-            background: var(--bg-card);
-            border-radius: var(--radius);
-            padding: 20px;
-            margin-bottom: 20px;
-            border: 1px solid var(--border);
-            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.4);
-        }
-        .divider {
-            text-align: center;
-            margin: 15px 0;
-            color: var(--text-muted);
-            font-size: 0.9rem;
-        }
-        .highlight-text {
-            font-size: 1.4rem;
-            font-weight: bold;
-            color: var(--warning);
-        }
-
-        .btn {
-            padding: 12px 20px;
-            border: none;
-            border-radius: 8px;
-            font-weight: bold;
-            cursor: pointer;
-            transition: all 0.2s ease;
-            font-size: 1rem;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-        }
-        .btn-primary { background: var(--primary); color: #14241c; }
-        .btn-primary:hover { background: var(--primary-hover); color: white; }
-        .btn-success { background: var(--success); color: white; }
-        .btn-danger { background: var(--danger); color: #14241c; font-weight: bold; }
-        .btn-warning { background: var(--warning); color: black; }
-        .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--text-main); }
-        .btn-sm { padding: 6px 12px; font-size: 0.85rem; }
-        .btn-block { width: 100%; display: flex; }
-        .mt-4 { margin-top: 16px; }
-
-        .input-group {
-            margin-bottom: 15px;
-            display: flex;
-            flex-direction: column;
-        }
-        .input-group label {
-            margin-bottom: 5px;
-            font-size: 0.9rem;
-            color: var(--text-muted);
-        }
-        input[type="text"], select {
-            background: var(--bg-input);
-            border: 1px solid var(--border);
-            color: var(--text-main);
-            padding: 12px;
-            border-radius: 8px;
-            font-size: 1rem;
-            width: 100%;
-        }
-        input:focus, select:focus {
-            outline: 2px solid var(--primary);
-        }
-
-        .subtitle {
-            text-align: center;
-            color: var(--text-muted);
-            margin-bottom: 25px;
-        }
-        .share-url-container {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            margin-bottom: 20px;
-            background: var(--bg-main);
-            padding: 10px;
-            border-radius: 8px;
-        }
-        .share-url-container input {
-            flex: 1;
-            border: none;
-            background: transparent;
-            color: var(--primary);
-            font-family: monospace;
-        }
-        .player-list {
-            list-style: none;
-            margin: 15px 0;
-        }
-        .player-list li {
-            padding: 10px;
-            background: var(--bg-input);
-            margin-bottom: 8px;
-            border-radius: 6px;
-            display: flex;
-            justify-content: space-between;
-        }
-
-        .game-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 15px;
-            background: var(--bg-card);
-            padding: 12px 20px;
-            border-radius: var(--radius);
-            border: 1px solid var(--border);
-        }
-        .timer-badge {
-            font-size: 1.5rem;
-            font-weight: bold;
-            color: #fca5a5;
-        }
-        .status-badge {
-            background: var(--bg-input);
-            padding: 5px 12px;
-            border-radius: 20px;
-            font-size: 0.9rem;
-        }
-
-        .game-layout {
-            display: grid;
-            grid-template-columns: 1fr 280px;
-            gap: 20px;
-        }
-
-        @media (max-width: 768px) {
-            .game-layout {
-                grid-template-columns: 1fr;
-            }
-        }
-
-        .instruction-box {
-            background: var(--bg-input);
-            color: var(--primary);
-            border: 2px solid var(--primary);
-            padding: 15px;
-            border-radius: var(--radius);
-            font-size: 1.2rem;
-            font-weight: bold;
-            text-align: center;
-            margin-bottom: 15px;
-        }
-
-        .reveal-box {
-            background: #3b2222;
-            border: 2px dashed var(--danger);
-            color: #fca5a5;
-            padding: 10px;
-            border-radius: 8px;
-            text-align: center;
-            margin-bottom: 15px;
-            font-weight: bold;
-        }
-        .hint-box {
-            background: #1e293b;
-            border: 1px solid #38bdf8;
-            color: #7dd3fc;
-            padding: 8px;
-            border-radius: 8px;
-            text-align: center;
-            margin-bottom: 10px;
-            font-size: 1.1rem;
-        }
-
-        .canvas-wrapper {
-            background: var(--bg-card);
-            border-radius: var(--radius);
-            padding: 15px;
-            border: 1px solid var(--border);
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            margin-bottom: 15px;
-        }
-        .canvas-title {
-            align-self: flex-start;
-            margin-bottom: 10px;
-            color: var(--text-muted);
-            font-size: 0.9rem;
-        }
-
-        #paint-canvas, #prev-canvas-image {
-            background: #ffffff;
-            border-radius: 8px;
-            max-width: 100%;
-            height: auto;
-            aspect-ratio: 5 / 4;
-            cursor: crosshair;
-            touch-action: none;
-        }
-        #prev-canvas-image {
-            object-fit: contain;
-            width: 500px;
-            height: 400px;
-        }
-
-        .canvas-tools {
-            display: flex;
-            gap: 15px;
-            margin-top: 12px;
-            width: 100%;
-            align-items: center;
-            justify-content: center;
-        }
-        #tool-color {
-            border: none;
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            cursor: pointer;
-            background: transparent;
-        }
-
-        .input-card {
-            background: var(--bg-card);
-            padding: 15px;
-            border-radius: var(--radius);
-            border: 1px solid var(--border);
-        }
-        .input-row {
-            display: flex;
-            gap: 10px;
-        }
-        .input-row input { flex: 1; }
-        .input-hint {
-            font-size: 0.8rem;
-            color: var(--text-muted);
-            margin-top: 8px;
-        }
-
-        .member-status-list {
-            list-style: none;
-            margin-top: 10px;
-        }
-        .member-status-list li {
-            display: flex;
-            justify-content: space-between;
-            padding: 8px 0;
-            border-bottom: 1px solid var(--border);
-        }
-        .status-alive { color: #4ade80; font-weight: bold; }
-        .status-dead { color: var(--danger); text-decoration: line-through; opacity: 0.6; }
-
-        .animate-pulse {
-            animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-        }
-        @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: .5; }
-        }
-
-        .result-card { padding: 40px 20px; }
-        .winner-title { color: var(--warning); font-size: 2.5rem; margin-bottom: 10px; }
-        .winner-name { font-size: 2rem; font-weight: bold; margin-bottom: 20px; }
-        .my-4 { margin: 25px 0; border: 0; border-top: 1px solid var(--border); }
-        .timeline {
-            display: flex;
-            flex-direction: column;
-            gap: 15px;
-            margin: 20px auto;
-            max-width: 500px;
-            text-align: left;
-        }
-        .timeline-item {
-            background: var(--bg-input);
-            padding: 15px;
-            border-radius: 8px;
-            border-left: 4px solid var(--primary);
-        }
-        .timeline-word { font-size: 1.2rem; font-weight: bold; color: white;}
-        .timeline-meta { font-size: 0.85rem; color: var(--text-muted); margin-top: 5px;}
-        .timeline-img {
-            max-width: 150px; 
-            background: white; 
-            border-radius: 4px; 
-            margin-top: 8px;
-            display: block;
-        }
-        .elimination-list {
-            list-style: none;
-            max-width: 400px;
-            margin: 15px auto;
-            text-align: left;
-        }
-        .elimination-list li {
-            padding: 8px;
-            border-bottom: 1px solid var(--border);
-            color: var(--text-muted);
-        }
+        .poker-table { background: radial-gradient(circle, #065f46 0%, #022c22 100%); }
     </style>
 </head>
-<body>
-    <div id="app" class="container">
-        <div id="screen-lobby" class="screen">
-            <h1>🎨 絵しりとりバトル 🎨</h1>
-            <p class="subtitle">HTML/JS P2P Online Game</p>
-            
-            <div class="card" id="join-form">
-                <div class="input-group">
-                    <label for="input-name">プレイヤー名</label>
-                    <input type="text" id="input-name" placeholder="名前を入力してください" maxlength="10">
+<body class="bg-slate-950 text-slate-100 font-sans h-screen flex flex-col selection:bg-emerald-500 overflow-hidden">
+
+    <!-- 1. 入室画面 -->
+    <div id="login-screen" class="flex-1 flex items-center justify-center p-4">
+        <div class="bg-slate-900 p-8 rounded-2xl shadow-2xl max-w-md w-full border border-slate-800">
+            <div class="text-center mb-6">
+                <div class="inline-flex items-center justify-center w-16 h-16 bg-emerald-950 text-emerald-400 rounded-full mb-3 text-3xl border border-emerald-800">
+                    <i class="fas fa-spade"></i>
                 </div>
-                
-                <div class="actions">
-                    <button id="btn-create-room" class="btn btn-primary">部屋を作る (ホスト)</button>
-                    <div class="divider">または</div>
-                    <div class="input-group">
-                        <input type="text" id="input-peer-id" placeholder="招待Peer IDを入力（URL引数でも可）">
-                        <button id="btn-join-room" class="btn btn-success">部屋に入る</button>
-                    </div>
-                </div>
+                <h1 class="text-2xl font-bold text-white" id="welcome-title">東海ポーカーサービっす</h1>
+                <p class="text-sm text-slate-400 mt-1" id="welcome-subtitle">合言葉とニックネームを入力して着席してください</p>
             </div>
-
-            <div id="lobby-room-info" class="card hidden">
-                <div class="share-url-container">
-                    <span class="label">招待URL:</span>
-                    <input type="text" id="share-url" readonly>
-                    <button id="btn-copy-url" class="btn btn-sm btn-outline">コピー</button>
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-semibold text-slate-300 mb-1">ルーム合言葉 (パスワード)</label>
+                    <input type="password" id="room-password" value="" placeholder="合言葉を入力"
+                        class="w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none text-white">
+                </div>
+                <div>
+                    <label class="block text-sm font-semibold text-slate-300 mb-1">プレイヤー名</label>
+                    <input type="text" id="nickname" value="ゲストさん" placeholder="例: ゲストさん"
+                        class="w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none text-white">
                 </div>
                 
-                <h3>参加プレイヤー一覧 (<span id="current-player-count">0</span>/8)</h3>
-                <ul id="player-list" class="player-list"></ul>
-                
-                <div class="host-controls hidden" id="host-controls">
-                    <button id="btn-start-game" class="btn btn-danger btn-block">ゲームを開始する 🔥</button>
-                </div>
-                <div class="guest-controls" id="guest-controls">
-                    <p class="animate-pulse">ホストがゲームを開始するのを待っています...</p>
-                </div>
-            </div>
-        </div>
-
-        <div id="screen-game" class="screen hidden">
-            <header class="game-header">
-                <div class="timer-badge">⏳ <span id="game-timer">60</span>s</div>
-                <div class="status-badge" id="player-status-badge">状態: 待機中</div>
-            </header>
-
-            <main class="game-layout">
-                <div class="main-area">
-                    <div id="game-instruction" class="instruction-box">
-                        お題を考えて絵を描いてください！
-                    </div>
-
-                    <div id="reveal-answer-box" class="reveal-box hidden"></div>
-
-                    <div id="prev-canvas-container" class="canvas-wrapper hidden">
-                        <p class="canvas-title">前のプレイヤーが描いた絵 👇</p>
-                        <div id="word-length-hint" class="hint-box"></div>
-                        <img id="prev-canvas-image" src="" alt="前の人の絵">
-                    </div>
-
-                    <div id="current-canvas-container" class="canvas-wrapper hidden">
-                        <canvas id="paint-canvas" width="500" height="400"></canvas>
-                        <div class="canvas-tools" id="canvas-tools">
-                            <input type="color" id="tool-color" value="#000000">
-                            <select id="tool-size">
-                                <option value="3">細線</option>
-                                <option value="8" selected>中線</option>
-                                <option value="15">太線</option>
-                                <option value="30">極太</option>
-                            </select>
-                            <button id="btn-clear-canvas" class="btn btn-sm btn-outline">全消し</button>
-                        </div>
-                    </div>
-
-                    <div id="game-input-area" class="input-card hidden">
-                        <div class="input-row">
-                            <input type="text" id="game-word-input" placeholder="ひらがな/カタカナで入力" autocomplete="off">
-                            <button id="btn-submit-turn" class="btn btn-primary">提出する</button>
-                        </div>
-                        <p class="input-hint">※「ん」で終わる言葉は入力できません。長音は最後の文字に変換されます。</p>
-                    </div>
-                </div>
-
-                <aside class="sidebar-area">
-                    <div class="card text-center" id="current-turn-info">
-                        <h4>現在のターン</h4>
-                        <p id="active-player-name" class="highlight-text">-</p>
-                    </div>
-                    
-                    <div class="card">
-                        <h4>プレイヤーの生存状態</h4>
-                        <ul id="game-member-list" class="member-status-list"></ul>
-                    </div>
-                </aside>
-            </main>
-        </div>
-
-        <div id="screen-result" class="screen hidden">
-            <div class="card text-center result-card">
-                <h1 class="winner-title">👑 🏆 優勝 👑</h1>
-                <div id="winner-name" class="winner-name">-</div>
-
-                <hr class="my-4">
-
-                <h3>📜 しりとり履歴</h3>
-                <div id="history-timeline" class="timeline"></div>
-
-                <hr class="my-4">
-
-                <h3>💀 脱落順位</h3>
-                <ul id="elimination-list" class="elimination-list"></ul>
-
-                <div id="host-restart-area" class="hidden">
-                    <button id="btn-restart-game" class="btn btn-warning btn-block mt-4">同じメンバーでもう一度遊ぶ 🔄</button>
-                </div>
-                <div id="guest-restart-area">
-                    <p class="animate-pulse mt-4" style="color:var(--text-muted)">ホストが再戦を選択するのを待っています...</p>
-                </div>
-                
-                <button id="btn-exit-lobby" class="btn btn-outline mt-4">タイトルに戻る (退室)</button>
+                <button type="button" id="enter-btn"
+                    class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-4 px-4 rounded-xl transition shadow-lg flex items-center justify-center gap-2 cursor-pointer">
+                    <i class="fas fa-chair"></i> テーブルに着席する
+                </button>
             </div>
         </div>
     </div>
 
-    <script>
-        const state = {
-            peer: null,
-            connections: {},
-            hostConn: null,
-            isHost: false,
-            myId: '',
-            myName: 'ゲスト',
-            roomId: '',
-            players: [],
-            gameState: 'lobby',
-            gamePhase: 'init',
-            turnIndex: 0,
-            currentClueLetter: '',
-            prevCanvasData: '',
-            prevRealWord: '',         
-            revealMessage: '',        
-            timer: 60,               
-            timerId: null,
-            history: [],
-            eliminations: []
+    <!-- 2. ポーカーゲーム画面 -->
+    <div id="game-screen" class="hidden flex-1 flex flex-col h-full p-3 gap-3 overflow-hidden">
+        
+        <!-- ヘッダー -->
+        <header class="flex items-center justify-between bg-slate-900 p-3 rounded-xl border border-slate-800">
+            <div class="flex items-center gap-3">
+                <span class="w-3 h-3 bg-emerald-500 rounded-full animate-pulse"></span>
+                <div>
+                    <h2 class="font-bold text-sm text-white">東海ポーカーサービっす</h2>
+                    <p class="text-xs text-slate-400" id="user-display">着席中...</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-2">
+                <!-- ホスト専用管理ボタン -->
+                <button id="deal-btn" class="hidden bg-amber-600 hover:bg-amber-700 text-slate-950 text-xs font-black py-1.5 px-3 rounded-lg transition">
+                    🃏 カードを配る (次戦)
+                </button>
+                <button id="reset-pot-btn" class="hidden bg-slate-700 hover:bg-slate-600 text-white text-xs font-bold py-1.5 px-3 rounded-lg transition">
+                    🔄 ポット精算
+                </button>
+                <button id="invite-btn" class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold py-1.5 px-3 rounded-lg transition flex items-center gap-1">
+                    <i class="fas fa-link"></i> 友達を招待
+                </button>
+            </div>
+        </header>
+
+        <!-- メインゲームエリア -->
+        <div class="flex-1 flex gap-3 overflow-hidden">
+            
+            <!-- 左側：カジノテーブル -->
+            <main class="flex-1 poker-table rounded-3xl border-[10px] border-amber-950 shadow-inner relative flex flex-col items-center justify-center p-4">
+                
+                <!-- コミュニティカード ＆ ポット -->
+                <div class="text-center z-10">
+                    <div class="bg-black/40 px-5 py-1.5 rounded-full inline-block text-amber-300 font-black text-sm mb-3 border border-black/20">
+                        💰 TOTAL POT: <span id="total-pot">0</span>
+                    </div>
+                    <div class="flex justify-center gap-2 mb-2" id="community-cards-area">
+                        <!-- ここにリアルタイムで場のカード5枚が同期配置されます -->
+                        <div class="text-slate-400 italic text-xs">ホストがカードを配るのを待っています...</div>
+                    </div>
+                </div>
+
+                <!-- 🌟 リアルタイム5人対戦席レイアウトエリア -->
+                <div id="seats-container" class="absolute inset-0 pointer-events-none p-4">
+                    <!-- JSで最大5つの席を自動配置します -->
+                </div>
+
+                <!-- クイックリアクションパネル -->
+                <div class="absolute bottom-4 bg-black/40 px-3 py-1.5 rounded-full border border-white/10 flex items-center gap-2 z-20">
+                    <span class="text-[10px] text-emerald-200 font-bold mr-1 uppercase">Emoji:</span>
+                    <button onclick="sendEmoji('😊')" class="hover:scale-125 transition text-base filter drop-shadow">😊</button>
+                    <button onclick="sendEmoji('🤣')" class="hover:scale-125 transition text-base filter drop-shadow">🤣</button>
+                    <button onclick="sendEmoji('😱')" class="hover:scale-125 transition text-base filter drop-shadow">😱</button>
+                    <button onclick="sendEmoji('🔥')" class="hover:scale-125 transition text-base filter drop-shadow">🔥</button>
+                    <button onclick="sendEmoji('💩')" class="hover:scale-125 transition text-base filter drop-shadow">💩</button>
+                    <button onclick="sendEmoji('🙏')" class="hover:scale-125 transition text-base filter drop-shadow">🙏</button>
+                </div>
+            </main>
+
+            <!-- 右側：カンペ -->
+            <aside class="w-64 bg-slate-900 rounded-2xl border border-slate-800 p-3 flex flex-col gap-2 overflow-y-auto hidden md:flex">
+                <h3 class="text-xs font-bold text-emerald-400 flex items-center gap-1 border-b border-slate-800 pb-1.5 uppercase tracking-wider">
+                    <i class="fas fa-trophy"></i> 役の強さ一覧
+                </h3>
+                <div class="space-y-1.5 text-[11px]">
+                    <div class="p-1 bg-slate-850 rounded flex justify-between"><span class="font-bold text-amber-400">1. ロイヤル</span><span class="text-slate-400">10,J,Q,K,A</span></div>
+                    <div class="p-1 bg-slate-800 rounded flex justify-between"><span class="font-bold text-amber-500">2. ストフラ</span><span class="text-slate-400">同マーク連続</span></div>
+                    <div class="p-1 bg-slate-800 rounded flex justify-between"><span class="font-bold text-indigo-400">3. フォーカード</span><span class="text-slate-400">同じ4枚</span></div>
+                    <div class="p-1 bg-slate-800 rounded flex justify-between"><span class="font-bold text-indigo-400">4. フルハウス</span><span class="text-slate-400">3枚 + 2枚</span></div>
+                    <div class="p-1 bg-slate-800 rounded flex justify-between"><span class="font-bold text-sky-400">5. フラッシュ</span><span class="text-slate-400">全て同マーク</span></div>
+                    <div class="p-1 bg-slate-800 rounded flex justify-between"><span class="font-bold text-sky-400">6. ストレート</span><span class="text-slate-400">数字が連続</span></div>
+                    <div class="p-1 bg-slate-800 rounded flex justify-between"><span class="font-bold text-emerald-400">7. スリーカード</span><span class="text-slate-400">同じ3枚</span></div>
+                    <div class="p-1 bg-slate-800 rounded flex justify-between"><span class="font-bold text-emerald-400">8. ツーペア</span><span class="text-slate-400">2ペア</span></div>
+                    <div class="p-1 bg-slate-800 rounded flex justify-between"><span class="font-bold text-slate-300">9. ワンペア</span><span class="text-slate-400">1ペア</span></div>
+                    <div class="p-1 bg-slate-800 rounded flex justify-between"><span class="font-bold text-slate-500">10. ハイカード</span><span class="text-slate-400">役なし</span></div>
+                </div>
+            </aside>
+        </div>
+
+        <!-- 自分の手札 ＆ AIヒント ＆ 操作パネル -->
+        <footer class="bg-slate-900 p-3 rounded-xl border border-slate-800 flex flex-col lg:flex-row gap-3 items-stretch">
+            <div class="flex items-center gap-3 bg-slate-950/50 p-2 rounded-xl border border-slate-850">
+                <div>
+                    <p class="text-[10px] text-slate-400 font-bold mb-1 uppercase">Your Hand</p>
+                    <div class="flex gap-1.5" id="my-cards-area">
+                        <div class="w-12 h-18 bg-slate-800 border border-slate-700 rounded-lg shadow-md"></div>
+                        <div class="w-12 h-18 bg-slate-800 border border-slate-700 rounded-lg shadow-md"></div>
+                    </div>
+                </div>
+                <div>
+                    <p class="text-[9px] text-slate-400 font-bold uppercase">Current Hand</p>
+                    <p class="text-sm font-bold text-amber-400" id="hand-strength">未配布</p>
+                    <p class="text-xs text-slate-300 mt-0.5">マイチップ: <span class="text-emerald-400 font-mono font-bold" id="my-chips-display">🪙 2,000</span></p>
+                </div>
+            </div>
+
+            <!-- AI大予言ヒントボード -->
+            <div class="flex-1 bg-indigo-950/40 border border-indigo-900/60 p-2.5 rounded-xl flex gap-2 items-start text-xs">
+                <div class="text-indigo-400 text-base mt-0.5"><i class="fas fa-lightbulb"></i></div>
+                <div class="space-y-0.5">
+                    <p class="font-bold text-indigo-300">AI大予言ナビ（勝利へのヒント）</p>
+                    <p class="text-slate-300 leading-relaxed" id="ai-hint">
+                        カードが配られるのを待っています。配られたらここに「狙える役」や「今勝てそうか」の秘策が自動表示されます！
+                    </p>
+                </div>
+            </div>
+
+            <!-- アクション操作ボタン -->
+            <div class="flex flex-wrap gap-2 items-center justify-end">
+                <button onclick="handleAction('FOLD')" class="bg-rose-950/40 border border-rose-900 hover:bg-rose-900 text-rose-200 font-bold h-12 px-4 rounded-xl transition text-xs flex flex-col items-center justify-center">
+                    <span>フォールド</span>
+                    <span class="text-[8px] text-rose-400 font-normal">試合を降りる</span>
+                </button>
+                <button onclick="handleAction('CHECK')" class="bg-slate-800 hover:bg-slate-700 text-white font-bold h-12 px-4 rounded-xl transition text-xs flex flex-col items-center justify-center">
+                    <span>チェック</span>
+                    <span class="text-[8px] text-slate-400 font-normal">パスする</span>
+                </button>
+                <button onclick="handleAction('CALL')" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold h-12 px-5 rounded-xl transition text-xs flex flex-col items-center justify-center relative">
+                    <span class="absolute -top-2 bg-amber-500 text-slate-950 text-[8px] font-black px-1.5 py-0.5 rounded-full shadow">🔥 おすすめ</span>
+                    <span>コール (乗る)</span>
+                </button>
+                <div class="flex bg-slate-950 rounded-xl border border-slate-800 overflow-hidden h-12">
+                    <button onclick="handleRaise()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-4 transition text-xs">
+                        レイズ
+                    </button>
+                    <input type="number" id="raise-amount" value="50" class="w-14 bg-transparent text-center font-bold text-white outline-none text-xs font-mono" min="10">
+                </div>
+            </div>
+        </footer>
+    </div>
+
+    <!-- Firebaseのプログラム -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getFirestore, collection, query, onSnapshot, doc, setDoc, deleteDoc, updateDoc, getDoc, getDocs } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyDOFE1P85EX_GjJfczSkRQegTNa8agF7VU",
+            authDomain: "tokai-5bc27.firebaseapp.com",
+            projectId: "tokai-5bc27",
+            storageBucket: "tokai-5bc27.firebasestorage.app",
+            messagingSenderId: "7085755557",
+            appId: "1:7085755557:web:e9d1f03973b1556478514c"
         };
 
-        const D = {
-            lobbyScreen: document.getElementById('screen-lobby'),
-            gameScreen: document.getElementById('screen-game'),
-            resultScreen: document.getElementById('screen-result'),
-            inputName: document.getElementById('input-name'),
-            inputPeerId: document.getElementById('input-peer-id'),
-            btnCreate: document.getElementById('btn-create-room'),
-            btnJoin: document.getElementById('btn-join-room'),
-            roomInfo: document.getElementById('lobby-room-info'),
-            shareUrl: document.getElementById('share-url'),
-            btnCopy: document.getElementById('btn-copy-url'),
-            playerList: document.getElementById('player-list'),
-            hostControls: document.getElementById('host-controls'),
-            guestControls: document.getElementById('guest-controls'),
-            btnStart: document.getElementById('btn-start-game'),
-            timer: document.getElementById('game-timer'),
-            statusBadge: document.getElementById('player-status-badge'),
-            instruction: document.getElementById('game-instruction'),
-            revealAnswerBox: document.getElementById('reveal-answer-box'), 
-            wordLengthHint: document.getElementById('word-length-hint'),   
-            prevCanvasContainer: document.getElementById('prev-canvas-container'),
-            prevCanvasImage: document.getElementById('prev-canvas-image'),
-            currentCanvasContainer: document.getElementById('current-canvas-container'),
-            canvas: document.getElementById('paint-canvas'),
-            canvasTools: document.getElementById('canvas-tools'),
-            toolColor: document.getElementById('tool-color'),
-            toolSize: document.getElementById('tool-size'),
-            btnClearCanvas: document.getElementById('btn-clear-canvas'),
-            inputArea: document.getElementById('game-input-area'),
-            wordInput: document.getElementById('game-word-input'),
-            btnSubmit: document.getElementById('btn-submit-turn'),
-            activePlayerName: document.getElementById('active-player-name'),
-            gameMemberList: document.getElementById('game-member-list'),
-            winnerName: document.getElementById('winner-name'),
-            historyTimeline: document.getElementById('history-timeline'),
-            eliminationList: document.getElementById('elimination-list'),
-            hostRestartArea: document.getElementById('host-restart-area'), 
-            guestRestartArea: document.getElementById('guest-restart-area'), 
-            btnRestartGame: document.getElementById('btn-restart-game'),     
-            btnExitLobby: document.getElementById('btn-exit-lobby')
-        };
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
 
-        const ctx = D.canvas.getContext('2d');
-        let isDrawing = false;
-        let lastX = 0;
-        let lastY = 0;
+        const urlParams = new URLSearchParams(window.location.search);
+        let roomId = urlParams.get('poker_room');
+        let isHost = false;
 
-        window.addEventListener('DOMContentLoaded', () => {
-            initCanvasEvents();
-            initUIEvents();
-            checkUrlParam();
+        // 部屋形態の判定
+        if (!roomId || roomId.trim() === "") {
+            roomId = "PK-" + Math.random().toString(36).substring(2, 9).toUpperCase();
+            isHost = true;
+            document.getElementById('welcome-title').innerText = "東海ポーカー (部屋新規作成)";
+            document.getElementById('welcome-subtitle').innerText = "着席するとお友達を招待できます";
+        } else {
+            isHost = false;
+            document.getElementById('welcome-title').innerText = "東海ポーカー (招待テーブル)";
+        }
+
+        let myName = "ゲストさん";
+        let myId = Math.random().toString(36).substring(2, 9);
+        let currentRoomData = null;
+        let allMembers = [];
+
+        // 入室イベント処理
+        document.getElementById('enter-btn').addEventListener('click', async () => {
+            const password = document.getElementById('room-password').value;
+            const inputName = document.getElementById('nickname').value.trim();
+
+            if (password !== 'qwert') { alert('合言葉が違います'); return; }
+            if (!inputName) { alert('名前を入力してください'); return; }
+
+            myName = inputName;
+
+            // 5人制限チェック
+            const membersSnap = await getDocs(collection(db, "poker_rooms", roomId, "members"));
+            if (membersSnap.size >= 5 && !isHost) {
+                alert("このテーブルは既に満席(5人)です。新しい部屋を建ててください。");
+                return;
+            }
+
+            // 初期ホスト部屋作成
+            if (isHost) {
+                await setDoc(doc(db, "poker_rooms", roomId), {
+                    pot: 0,
+                    communityCards: [],
+                    hostId: myId
+                });
+                window.history.replaceState({}, '', `${window.location.pathname}?poker_room=${roomId}`);
+            }
+
+            // プレイヤー情報登録
+            await setDoc(doc(db, "poker_rooms", roomId, "members", myId), {
+                id: myId,
+                name: myName,
+                chips: 2000,
+                status: 'READY', // READY, FOLD, CALLING
+                cards: [],
+                reaction: ''
+            });
+
+            // 画面展開
+            document.getElementById('login-screen').style.display = 'none';
+            document.getElementById('game-screen').classList.remove('hidden');
+
+            if (isHost) {
+                document.getElementById('deal-btn').classList.remove('hidden');
+                document.getElementById('reset-pot-btn').classList.remove('hidden');
+            }
+
+            startSync();
+            window.addEventListener('beforeunload', leaveTable);
         });
 
-        function checkUrlParam() {
-            const urlParams = new URLSearchParams(window.location.search);
-            const room = urlParams.get('room');
-            if (room) { D.inputPeerId.value = room; }
+        // 離脱処理
+        async function leaveTable() {
+            await deleteDoc(doc(db, "poker_rooms", roomId, "members", myId));
         }
 
-        function initUIEvents() {
-            D.btnCreate.addEventListener('click', () => createRoom());
-            D.btnJoin.addEventListener('click', () => joinRoom());
-            D.btnCopy.addEventListener('click', copyShareUrl);
-            D.btnStart.addEventListener('click', () => hostStartGame());
-            D.btnSubmit.addEventListener('click', submitTurnAction);
-            D.btnClearCanvas.addEventListener('click', clearCanvasAndSync);
-            D.btnRestartGame.addEventListener('click', () => hostRestartGame()); 
-            D.btnExitLobby.addEventListener('click', () => location.reload());
-        }
+        // 招待ボタン
+        document.getElementById('invite-btn').addEventListener('click', () => {
+            navigator.clipboard.writeText(window.location.href);
+            alert('招待リンクをコピーしました！友達に送ってね！');
+        });
 
-        function initPeer(callback) {
-            state.myName = D.inputName.value.trim() || '名無しプレイヤー' + Math.floor(Math.random()*1000);
-            state.peer = new Peer({
-                debug: 1,
-                host: '0.peerjs.com',
-                port: 443,
-                secure: true
-            });
-            state.peer.on('open', (id) => { state.myId = id; callback(); });
-            state.peer.on('error', (err) => { alert('通信エラー: ' + err.type); });
-        }
-
-        function createRoom() {
-            initPeer(() => {
-                state.isHost = true;
-                state.roomId = state.myId;
-                state.players.push({ id: state.myId, name: state.myName, alive: true, isHost: true });
-                setupHostReceiver();
-                showLobbyUI();
-            });
-        }
-
-        function joinRoom() {
-            const targetRoomId = D.inputPeerId.value.trim();
-            if (!targetRoomId) return alert('部屋IDを入力してください');
-            initPeer(() => {
-                state.isHost = false;
-                state.roomId = targetRoomId;
-                const conn = state.peer.connect(targetRoomId);
-                state.hostConn = conn;
-                conn.on('open', () => {
-                    sendToHost({ type: 'JOIN', name: state.myName });
-                    showLobbyUI();
-                });
-                conn.on('data', (data) => { handleDataAsGuest(data); });
-                conn.on('close', () => { alert('ホストとの接続が切れました。'); location.reload(); });
-            });
-        }
-
-        function setupHostReceiver() {
-            state.peer.on('connection', (conn) => {
-                state.connections[conn.peer] = conn;
-
-                conn.on('data', (data) => { handleDataAsHost(conn, data); });
-                conn.on('close', () => {
-                    state.players = state.players.filter(p => p.id !== conn.peer);
-                    delete state.connections[conn.peer];
-                    broadcastState();
-                    updateLobbyDOM();
-                    if (state.gameState === 'game') { checkGameRuleRulesOnDisconnect(); }
-                });
-            });
-        }
-
-        function sendToHost(data) { if (state.hostConn && state.hostConn.open) { state.hostConn.send(data); } }
-        function broadcastToAll(data) { Object.values(state.connections).forEach(conn => { if (conn.open) conn.send(data); }); }
-
-        function handleDataAsHost(conn, data) {
-            switch (data.type) {
-                case 'JOIN':
-                    if (state.players.length >= 8) { conn.send({ type: 'ERROR', message: '満員です' }); return; }
-                    if (state.gameState !== 'lobby') { conn.send({ type: 'ERROR', message: '開始済です' }); return; }
-                    
-                    if (!state.players.some(p => p.id === conn.peer)) {
-                        state.players.push({ id: conn.peer, name: data.name, alive: true, isHost: false });
-                    }
-                    
-                    updateLobbyDOM();
-                    broadcastState();
-                    break;
-                case 'SUBMIT_TURN': processTurnSubmission(conn.peer, data.word, data.canvasData); break;
-                case 'DRAW_LINE': broadcastToAll({ type: 'DRAW_LINE', ...data }); break;
-                case 'CLEAR_CANVAS': broadcastToAll({ type: 'CLEAR_CANVAS' }); break;
-            }
-        }
-
-        function handleDataAsGuest(data) {
-            switch (data.type) {
-                case 'ERROR': alert(data.message); location.reload(); break;
-                case 'SYNC_STATE':
-                    state.players = data.players; state.gameState = data.gameState; state.gamePhase = data.gamePhase;
-                    state.turnIndex = data.turnIndex; state.currentClueLetter = data.currentClueLetter;
-                    state.prevCanvasData = data.prevCanvasData; state.prevRealWord = data.prevRealWord; 
-                    state.revealMessage = data.revealMessage; 
-                    state.timer = data.timer; state.history = data.history; state.eliminations = data.eliminations;
-                    syncUI(); break;
-                case 'DRAW_LINE': if (getActivePlayer().id !== state.myId) { drawRemoteLine(data); } break;
-                case 'CLEAR_CANVAS': if (getActivePlayer().id !== state.myId) { ctx.clearRect(0, 0, D.canvas.width, D.canvas.height); } break;
-            }
-        }
-
-        function broadcastState() {
-            broadcastToAll({
-                type: 'SYNC_STATE', players: state.players, gameState: state.gameState, gamePhase: state.gamePhase,
-                turnIndex: state.turnIndex, currentClueLetter: state.currentClueLetter, prevCanvasData: state.prevCanvasData,
-                prevRealWord: state.prevRealWord, revealMessage: state.revealMessage, 
-                timer: state.timer, history: state.history, eliminations: state.eliminations
-            });
-            syncUI();
-        }
-
-        function showLobbyUI() {
-            D.lobbyScreen.classList.remove('hidden'); D.gameScreen.classList.add('hidden'); D.resultScreen.classList.add('hidden'); 
-            D.btnCreate.disabled = true; D.btnJoin.disabled = true; D.roomInfo.classList.remove('hidden');
-            D.shareUrl.value = `${window.location.origin}${window.location.pathname}?room=${state.roomId}`;
-            if (state.isHost) { D.hostControls.classList.remove('hidden'); D.guestControls.classList.add('hidden'); }
-            else { D.hostControls.classList.add('hidden'); D.guestControls.classList.remove('hidden'); }
-            updateLobbyDOM();
-        }
-
-        function updateLobbyDOM() {
-            D.currentPlayerCount.textContent = state.players.length;
-            D.playerList.innerHTML = '';
-            state.players.forEach(p => {
-                const li = document.createElement('li');
-                li.innerHTML = `<span>👤 ${p.name} ${p.id === state.myId ? '<strong>(あなた)</strong>' : ''}</span> 
-                                <span style="color:var(--text-muted)">${p.isHost ? 'ホスト' : 'ゲスト'}</span>`;
-                D.playerList.appendChild(li);
-            });
-        }
-
-        function copyShareUrl() { D.shareUrl.select(); document.execCommand('copy'); alert('招待URLをコピーしました！'); }
-
-        function syncUI() {
-            if (state.gameState === 'lobby') { showLobbyUI(); return; } 
-            if (state.gameState === 'result') { showResultScreen(); return; }
-            D.lobbyScreen.classList.add('hidden'); D.gameScreen.classList.remove('hidden');
-            D.timer.textContent = state.timer;
-            const activePlayer = getActivePlayer();
-            D.activePlayerName.textContent = activePlayer ? activePlayer.name : '-';
-            const me = state.players.find(p => p.id === state.myId);
-            if (me) {
-                D.statusBadge.textContent = me.alive ? '状態: プレイ中 🟢' : '状態: 観戦モード 👀';
-                D.statusBadge.style.color = 'var(--primary)';
-            }
-            D.gameMemberList.innerHTML = '';
-            state.players.forEach(p => {
-                const li = document.createElement('li');
-                li.innerHTML = `<span>${p.name}</span><span class="${p.alive ? 'status-alive' : 'status-dead'}">${p.alive ? '生存' : '脱落'}</span>`;
-                D.gameMemberList.appendChild(li);
-            });
-            const isMyTurn = (activePlayer && activePlayer.id === state.myId && me && me.alive);
-
-            if (state.revealMessage) {
-                D.revealAnswerBox.textContent = state.revealMessage;
-                D.revealAnswerBox.classList.remove('hidden');
-            } else {
-                D.revealAnswerBox.classList.add('hidden');
-            }
-
-            if (state.turnIndex === 0) {
-                D.prevCanvasContainer.classList.add('hidden'); D.currentCanvasContainer.classList.remove('hidden');
-                if (isMyTurn) {
-                    D.instruction.textContent = '【最初の手番】お題を決めて絵を描き、その答えを入力してください！';
-                    D.canvasTools.classList.remove('hidden'); D.inputArea.classList.remove('hidden');
-                    D.wordInput.placeholder = "最初のお題（例：りんご）";
-                } else {
-                    D.instruction.textContent = `${activePlayer.name}さんが最初のお題を描いています...`;
-                    D.canvasTools.classList.add('hidden'); D.inputArea.classList.add('hidden');
+        // リアルタイム同期開始
+        function startSync() {
+            // テーブル情報同期
+            onSnapshot(doc(db, "poker_rooms", roomId), (docSnap) => {
+                if(docSnap.exists()){
+                    currentRoomData = docSnap.data();
+                    renderTable();
                 }
-            } else {
-                if (state.gamePhase === 'answer') {
-                    D.prevCanvasContainer.classList.remove('hidden'); D.prevCanvasImage.src = state.prevCanvasData || '';
-                    D.currentCanvasContainer.classList.add('hidden');
-                    
-                    if (state.prevRealWord) {
-                        const len = state.prevRealWord.length;
-                        D.wordLengthHint.textContent = `ヒント: 「${state.currentClueLetter}」から始まる ${len} 文字の言葉 ( ${state.currentClueLetter}${'〇'.repeat(len-1)} )`;
-                    }
+            });
 
-                    if (isMyTurn) {
-                        D.instruction.textContent = `前の絵を推測して回答！(頭文字は「${state.currentClueLetter}」)`;
-                        D.inputArea.classList.remove('hidden'); D.wordInput.placeholder = `「${state.currentClueLetter}」から始まる言葉を入力`;
-                    } else {
-                        D.instruction.textContent = `${activePlayer.name}さんが前の絵を推測して回答中...`;
-                        D.inputArea.classList.add('hidden');
-                    }
-                } else if (state.gamePhase === 'draw') {
-                    D.prevCanvasContainer.classList.add('hidden'); D.currentCanvasContainer.classList.remove('hidden');
-                    if (isMyTurn) {
-                        D.instruction.textContent = `正解！次は「${state.currentClueLetter}」から始まる絵を描き、答えを入力してください！`;
-                        D.canvasTools.classList.remove('hidden'); D.inputArea.classList.remove('hidden');
-                        D.wordInput.placeholder = `「${state.currentClueLetter}」から始まる絵の答え`;
-                    } else {
-                        D.instruction.textContent = `${activePlayer.name}さんが「${state.currentClueLetter}」から始まる絵を描いています...`;
-                        D.canvasTools.classList.add('hidden'); D.inputArea.classList.add('hidden');
-                    }
+            // プレイヤー一覧同期（最大5人）
+            onSnapshot(collection(db, "poker_rooms", roomId, "members"), (snapshot) => {
+                allMembers = [];
+                snapshot.forEach(d => allMembers.push(d.data()));
+                renderSeats();
+
+                const me = allMembers.find(m => m.id === myId);
+                if (me) {
+                    document.getElementById('my-chips-display').innerText = `🪙 ${me.chips}`;
+                    renderMyCards(me.cards);
+                    updateAiHint(me.cards, currentRoomData?.communityCards || []);
                 }
+            });
+        }
+
+        // 卓情報描画
+        function renderTable() {
+            if(!currentRoomData) return;
+            document.getElementById('total-pot').innerText = currentRoomData.pot || 0;
+
+            const area = document.getElementById('community-cards-area');
+            area.innerHTML = "";
+            const cc = currentRoomData.communityCards || [];
+
+            if (cc.length === 0) {
+                area.innerHTML = `<div class="text-emerald-200 italic text-xs">ホストがカードを配るのを待っています...</div>`;
+                return;
             }
+
+            cc.forEach(card => {
+                const isRed = card.suit === '♥️' || card.suit === '♦️';
+                const cardHtml = `
+                    <div class="w-12 h-18 bg-white ${isRed ? 'text-red-600' : 'text-slate-900'} rounded-lg flex flex-col justify-between p-1 font-bold shadow-lg text-sm">
+                        <div>${card.suit}</div>
+                        <div class="text-right">${card.val}</div>
+                    </div>`;
+                area.insertAdjacentHTML('beforeend', cardHtml);
+            });
         }
 
-        function getActivePlayer() { return state.players[state.turnIndex]; }
+        // 5人席の自動配置描画
+        const SEAT_POSITIONS = [
+            "bottom-2 left-1/2 -translate-x-1/2", // 自分（下中央）
+            "top-1/2 left-4 -translate-y-1/2",    // 左中央
+            "top-4 left-1/4",                    // 上左
+            "top-4 right-1/4",                   // 上右
+            "top-1/2 right-4 -translate-y-1/2"    // 右中央
+        ];
 
-        function hostStartGame() {
-            if (state.players.length < 2) return alert('最低2人のプレイヤーが必要です。');
-            state.gameState = 'game'; state.gamePhase = 'draw'; state.turnIndex = 0; 
-            state.history = []; state.eliminations = []; state.prevRealWord = ''; state.revealMessage = '';
-            state.players.forEach(p => p.alive = true);
-            ctx.clearRect(0, 0, D.canvas.width, D.canvas.height); 
-            startTimer(60, () => { handleTimeOut(); }); 
-            broadcastState();
-        }
+        function renderSeats() {
+            const container = document.getElementById('seats-container');
+            container.innerHTML = "";
 
-        function hostRestartGame() {
-            state.gameState = 'lobby';
-            state.gamePhase = 'init';
-            state.turnIndex = 0;
-            state.prevRealWord = '';
-            state.revealMessage = '';
-            state.history = [];
-            state.eliminations = [];
-            state.players.forEach(p => p.alive = true);
-            clearInterval(state.timerId);
-            broadcastState();
-        }
-
-        function startTimer(seconds, timeoutCallback) {
-            clearInterval(state.timerId); state.timer = seconds; D.timer.textContent = state.timer;
-            state.timerId = setInterval(() => {
-                state.timer--; D.timer.textContent = state.timer;
-                if (state.isHost) {
-                    broadcastToAll({
-                        type: 'SYNC_STATE', players: state.players, gameState: state.gameState, gamePhase: state.gamePhase,
-                        turnIndex: state.turnIndex, currentClueLetter: state.currentClueLetter, prevCanvasData: state.prevCanvasData,
-                        prevRealWord: state.prevRealWord, revealMessage: state.revealMessage,
-                        timer: state.timer, history: state.history, eliminations: state.eliminations
-                    });
-                }
-                if (state.timer <= 0) { clearInterval(state.timerId); if (state.isHost) timeoutCallback(); }
-            }, 1000);
-        }
-
-        function handleTimeOut() { 
-            const activePlayer = getActivePlayer(); 
-            if (activePlayer) {
-                const revealAnswerStr = state.prevRealWord ? ` (正解は「${state.prevRealWord}」でした)` : '';
-                eliminatePlayer(activePlayer.id, `時間切れ${revealAnswerStr}`); 
-            } 
-        }
-
-        function eliminatePlayer(id, reason) {
-            const player = state.players.find(p => p.id === id);
-            if (player && player.alive) {
-                player.alive = false;
-                state.eliminations.unshift(`${player.name} (${reason})`);
-                alert(`${player.name} さんが脱落しました\n理由: ${reason}`);
-                if (checkGameEndCondition()) { endGame(); } else { advanceTurn(); }
+            // 自分が常にポジション0番になるようにソート
+            const sorted = [...allMembers];
+            const myIndex = sorted.findIndex(m => m.id === myId);
+            if(myIndex > -1) {
+                const me = sorted.splice(myIndex, 1)[0];
+                sorted.unshift(me);
             }
+
+            sorted.forEach((member, idx) => {
+                const posClass = SEAT_POSITIONS[idx] || "top-4 left-4";
+                const isMe = member.id === myId;
+                
+                const html = `
+                    <div class="absolute ${posClass} bg-slate-900/95 border ${isMe ? 'border-emerald-500 ring-2 ring-emerald-500/20' : 'border-slate-700'} p-2 rounded-xl text-center min-w-[110px] shadow-2xl pointer-events-auto">
+                        <p class="text-xs font-bold text-slate-200 truncate">${member.name} ${isMe ? '(あなた)' : ''}</p>
+                        <p class="text-[11px] text-amber-400 font-mono font-bold">🪙 ${member.chips}</p>
+                        <div class="flex justify-center gap-1 mt-1">
+                            ${member.status === 'FOLD' ? '<span class="text-[9px] bg-rose-950 text-rose-300 px-1 rounded">FOLD</span>' : ''}
+                            ${member.status === 'CHECK' ? '<span class="text-[9px] bg-slate-800 text-slate-300 px-1 rounded">CHECK</span>' : ''}
+                            ${member.status === 'CALL' ? '<span class="text-[9px] bg-indigo-950 text-indigo-300 px-1 rounded">CALL</span>' : ''}
+                            ${member.status === 'RAISE' ? '<span class="text-[9px] bg-emerald-950 text-emerald-300 px-1 rounded">RAISE</span>' : ''}
+                        </div>
+                        <!-- リアクション泡 -->
+                        ${member.reaction ? `<div class="absolute -top-8 left-1/2 -translate-x-1/2 bg-white text-slate-950 text-lg px-2 py-0.5 rounded-full shadow-lg animate-bounce">${member.reaction}</div>` : ''}
+                    </div>
+                `;
+                container.insertAdjacentHTML('beforeend', html);
+            });
+
+            document.getElementById('user-display').innerText = `プレイヤー名: ${myName} | テーブル人数: ${allMembers.length}/5人`;
         }
 
-        function checkGameEndCondition() { return (state.players.filter(p => p.alive).length <= 1); }
-        function endGame() { clearInterval(state.timerId); state.gameState = 'result'; broadcastState(); }
+        // 自分の手札描写
+        function renderMyCards(cards) {
+            const area = document.getElementById('my-cards-area');
+            area.innerHTML = "";
+            if(!cards || cards.length === 0){
+                area.innerHTML = `
+                    <div class="w-12 h-18 bg-slate-850 border border-slate-700 rounded-lg shadow-md flex items-center justify-center text-slate-600 font-bold">?</div>
+                    <div class="w-12 h-18 bg-slate-850 border border-slate-700 rounded-lg shadow-md flex items-center justify-center text-slate-600 font-bold">?</div>`;
+                document.getElementById('hand-strength').innerText = "未配布";
+                return;
+            }
 
-        function advanceTurn() {
-            if (state.players.filter(p => p.alive).length <= 1) { endGame(); return; }
-            do { state.turnIndex = (state.turnIndex + 1) % state.players.length; } while (!state.players[state.turnIndex].alive);
-            state.gamePhase = 'answer';
-            startTimer(60, () => { handleTimeOut(); }); 
-            broadcastState();
+            cards.forEach(card => {
+                const isRed = card.suit === '♥️' || card.suit === '♦️';
+                const cardHtml = `
+                    <div class="w-12 h-18 bg-white ${isRed ? 'text-red-600' : 'text-slate-900'} rounded-lg flex flex-col justify-between p-1 font-bold shadow-md text-sm">
+                        <div>${card.suit}</div>
+                        <div class="text-right">${card.val}</div>
+                    </div>`;
+                area.insertAdjacentHTML('beforeend', cardHtml);
+            });
         }
 
-        function checkGameRuleRulesOnDisconnect() {
-            if (checkGameEndCondition()) { endGame(); } 
-            else { if (!state.players[state.turnIndex] || !state.players[state.turnIndex].alive) { advanceTurn(); } else { broadcastState(); } }
-        }
+        // 初心者救済：AI大予言ヒント＆現在の役ロジック
+        function updateAiHint(myCards, comCards) {
+            const label = document.getElementById('hand-strength');
+            const hint = document.getElementById('ai-hint');
 
-        function submitTurnAction() {
-            const word = D.wordInput.value.trim();
-            if (!word) return alert('言葉を入力してください');
-            if (word.endsWith('ん') || word.endsWith('ン')) { return alert('「ん」で終わる言葉は禁止です！'); }
-            let canvasData = '';
-            if (state.turnIndex === 0 || state.gamePhase === 'draw') { canvasData = D.canvas.toDataURL(); }
-            if (state.isHost) { processTurnSubmission(state.myId, word, canvasData); } 
-            else { sendToHost({ type: 'SUBMIT_TURN', word: word, canvasData: canvasData }); }
-            D.wordInput.value = '';
-        }
+            if(!myCards || myCards.length === 0) {
+                label.innerText = "未配布";
+                hint.innerText = "カードが配られるのを待っています。配られたらここに「狙える役」や「今勝てそうか」の秘策が自動表示されます！";
+                return;
+            }
 
-        function processTurnSubmission(playerId, rawWord, canvasData) {
-            const activePlayer = getActivePlayer();
-            if (activePlayer.id !== playerId) return;
-            const normalizedWord = normalizeWord(rawWord);
+            const total = [...myCards, ...comCards];
             
-            if (state.turnIndex === 0) {
-                state.currentClueLetter = getEndCharacter(normalizedWord);
-                state.prevCanvasData = canvasData;
-                state.prevRealWord = rawWord; 
-                state.revealMessage = `【最初のお題】${activePlayer.name}さんが絵を描きました！末尾は「${state.currentClueLetter}」です。`;
-                state.history.push({ word: rawWord, player: activePlayer.name, img: canvasData });
-                advanceTurn();
-            } else {
-                if (state.gamePhase === 'answer') {
-                    if (normalizedWord.charAt(0) !== state.currentClueLetter) {
-                        eliminatePlayer(activePlayer.id, `「${state.currentClueLetter}」から始まっていません (正解は: ${state.prevRealWord})`); return;
-                    }
-                    if (normalizedWord !== normalizeWord(state.prevRealWord)) {
-                        eliminatePlayer(activePlayer.id, `不正解！ (前の人の正解は: ${state.prevRealWord})`); return;
-                    }
-                    
-                    state.revealMessage = `⭕ 正解！ 前の絵は「${state.prevRealWord}」でした。続けて絵を描いてください！`;
-                    state.gamePhase = 'draw';
-                    state.currentClueLetter = getEndCharacter(normalizedWord);
-                    startTimer(60, () => { handleTimeOut(); }); 
-                    broadcastState();
-                } else if (state.gamePhase === 'draw') {
-                    if (normalizedWord.charAt(0) !== state.currentClueLetter) {
-                        eliminatePlayer(activePlayer.id, `「${state.currentClueLetter}」のルールに沿っていません`); return;
-                    }
-                    state.prevCanvasData = canvasData;
-                    state.prevRealWord = rawWord; 
-                    state.revealMessage = `🎨 ${activePlayer.name}さんが新しい絵を描きました！末尾は「${getEndCharacter(normalizedWord)}」です。`;
-                    state.history.push({ word: rawWord, player: activePlayer.name, img: canvasData });
-                    advanceTurn();
-                }
-            }
-        }
+            // 超簡易ペア判定
+            const counts = {};
+            total.forEach(c => counts[c.val] = (counts[c.val] || 0) + 1);
+            const pairs = Object.values(counts).filter(c => c === 2).length;
+            const three = Object.values(counts).filter(c => c === 3).length;
 
-        function normalizeWord(str) {
-            let val = str.replace(/[\u30a1-\u30f6]/g, (match) => String.fromCharCode(match.charCodeAt(0) - 0x60));
-            const smalls = {'ぁ':'あ','ぃ':'い','ぅ':'う','ぇ':'え','ぉ':'お','ゃ':'や','ゅ':'ゆ','ょ':'よ','っ':'つ','ゎ':'わ'};
-            return val.split('').map(c => smalls[c] || c).join('');
-        }
+            let strengthText = "ハイカード (役なし)";
+            let hintText = "【AIアドバイス】まだペアはありません。場に同じ数字のカードが出るか、数字が繋がるのを待ちましょう。不利そうな時は『フォールド』で降りるのも立派な戦略です！";
 
-        function getEndCharacter(normalizedStr) {
-            if (!normalizedStr) return '';
-            let last = normalizedStr.slice(-1);
-            if (last === 'ー' && normalizedStr.length > 1) { last = normalizedStr.slice(-2, -1); }
-            return last;
-        }
-
-        function initCanvasEvents() {
-            D.canvas.addEventListener('mousedown', startDrawing);
-            D.canvas.addEventListener('mousemove', draw);
-            D.canvas.addEventListener('mouseup', stopDrawing);
-            D.canvas.addEventListener('mouseout', stopDrawing);
-            D.canvas.addEventListener('touchstart', (e) => {
-                const touch = e.touches[0];
-                D.canvas.dispatchEvent(new MouseEvent('mousedown', { clientX: touch.clientX, clientY: touch.clientY }));
-            }, { passive: false });
-            D.canvas.addEventListener('touchmove', (e) => {
-                const touch = e.touches[0];
-                D.canvas.dispatchEvent(new MouseEvent('mousemove', { clientX: touch.clientX, clientY: touch.clientY }));
-            }, { passive: false });
-            D.canvas.addEventListener('touchend', () => { D.canvas.dispatchEvent(new MouseEvent('mouseup', {})); }, { passive: false });
-        }
-
-        function getCanvasCoordinates(e) {
-            const rect = D.canvas.getBoundingClientRect();
-            return { x: (e.clientX - rect.left) * (D.canvas.width / rect.width), y: (e.clientY - rect.top) * (D.canvas.height / rect.height) };
-        }
-
-        function startDrawing(e) {
-            const activePlayer = getActivePlayer();
-            if (!activePlayer || activePlayer.id !== state.myId) return;
-            isDrawing = true; const coords = getCanvasCoordinates(e); lastX = coords.x; lastY = coords.y;
-        }
-
-        function draw(e) {
-            if (!isDrawing) return;
-            const coords = getCanvasCoordinates(e); const color = D.toolColor.value; const size = D.toolSize.value;
-            const lineData = { fromX: lastX, fromY: lastY, toX: coords.x, toY: coords.y, color: color, size: size };
-            drawLocalLine(lineData);
-            if (state.isHost) { broadcastToAll({ type: 'DRAW_LINE', ...lineData }); } 
-            else { sendToHost({ type: 'DRAW_LINE', ...lineData }); }
-            lastX = coords.x; lastY = coords.y;
-        }
-        function stopDrawing() { isDrawing = false; }
-        function drawLocalLine(data) {
-            ctx.beginPath(); ctx.moveTo(data.fromX, data.fromY); ctx.lineTo(data.toX, data.toY);
-            ctx.strokeStyle = data.color; ctx.lineWidth = data.size; ctx.lineCap = 'round'; ctx.stroke();
-        }
-        function drawRemoteLine(data) { drawLocalLine(data); }
-        function clearCanvasAndSync() {
-            ctx.clearRect(0, 0, D.canvas.width, D.canvas.height);
-            if (state.isHost) { broadcastToAll({ type: 'CLEAR_CANVAS' }); } else { sendToHost({ type: 'CLEAR_CANVAS' }); }
-        }
-
-        function showResultScreen() {
-            D.lobbyScreen.classList.add('hidden'); D.gameScreen.classList.add('hidden'); D.resultScreen.classList.remove('hidden');
-            const alivePlayers = state.players.filter(p => p.alive);
-            D.winnerName.textContent = alivePlayers.length > 0 ? alivePlayers[0].name : "なし (全員脱落)";
-            
-            if (state.isHost) {
-                D.hostRestartArea.classList.remove('hidden');
-                D.guestRestartArea.classList.add('hidden');
-            } else {
-                D.hostRestartArea.classList.add('hidden');
-                D.guestRestartArea.classList.remove('hidden');
+            if (three > 0) {
+                strengthText = "スリーカード！";
+                hintText = "【AIアドバイス】同じ数字が3枚揃っています！かなり強い状態です。積極的に『レイズ』して賭け金を上乗せし、友達からチップを奪い取るチャンスです！";
+            } else if (pairs === 2) {
+                strengthText = "ツーペア！";
+                hintText = "【AIアドバイス】2組のペアができています！そこそこ勝率が高い役です。周りが弱気なら『コール』か『レイズ』で強気に出て揺さぶってみましょう。";
+            } else if (pairs === 1) {
+                strengthText = "ワンペア";
+                hintText = "【AIアドバイス】同じ数字のペアが1組できました！まずは『チェック』や『コール』で様子を見つつ、コミュニティカードが5枚全部開くのを追いかけるのが手堅いです。";
             }
 
-            D.historyTimeline.innerHTML = '';
-            state.history.forEach((h, index) => {
-                const item = document.createElement('div'); item.className = 'timeline-item';
-                item.innerHTML = `<div class="timeline-word">${index + 1}. ${h.word}</div><div class="timeline-meta">描いた人: ${h.player}</div>
-                    ${h.img ? `<img src="${h.img}" class="timeline-img" alt="履歴画像">` : ''}`;
-                D.historyTimeline.appendChild(item);
+            label.innerText = strengthText;
+            hint.innerText = hintText;
+        }
+
+        // アクション操作送信
+        window.handleAction = async function(status) {
+            const me = allMembers.find(m => m.id === myId);
+            if(!me) return;
+
+            let bet = 0;
+            let currentChips = me.chips;
+
+            if(status === 'CALL') {
+                bet = 50; // 簡易の一律ベットシステム
+                if(currentChips < bet) bet = currentChips;
+                currentChips -= bet;
+            }
+
+            // 自分のステータスとチップを更新
+            await updateDoc(doc(db, "poker_rooms", roomId, "members", myId), {
+                status: status,
+                chips: currentChips
             });
-            D.eliminationList.innerHTML = '';
-            if (state.eliminations.length === 0) { D.eliminationList.innerHTML = '<li>脱落者はいませんでした。</li>'; } 
-            else { state.eliminations.forEach((e, idx) => { const li = document.createElement('li'); li.textContent = `${idx + 1}位送り: ${e}`; D.eliminationList.appendChild(li); }); }
-        }
+
+            // ポットに加算
+            if (bet > 0 && currentRoomData) {
+                await updateDoc(doc(db, "poker_rooms", roomId), {
+                    pot: (currentRoomData.pot || 0) + bet
+                });
+            }
+        };
+
+        window.handleRaise = async function() {
+            const amount = parseInt(document.getElementById('raise-amount').value) || 50;
+            const me = allMembers.find(m => m.id === myId);
+            if(!me || me.chips < amount) { alert("チップが足りません"); return; }
+
+            await updateDoc(doc(db, "poker_rooms", roomId, "members", myId), {
+                status: 'RAISE',
+                chips: me.chips - amount
+            });
+
+            if (currentRoomData) {
+                await updateDoc(doc(db, "poker_rooms", roomId), {
+                    pot: (currentRoomData.pot || 0) + amount
+                });
+            }
+        };
+
+        // 喜怒哀楽スタンプ送信
+        window.sendEmoji = async function(emoji) {
+            await updateDoc(doc(db, "poker_rooms", roomId, "members", myId), { reaction: emoji });
+            setTimeout(async () => {
+                await updateDoc(doc(db, "poker_rooms", roomId, "members", myId), { reaction: '' });
+            }, 2500);
+        };
+
+        // 【ホスト専用】カードを配る（山札シャッフルして全ステージ一括配布）
+        const suits = ['♠️', '♥️', '♦️', '♣️'];
+        const values = ['2','3','4','5','6','7','8','9','10','J','Q','K','A'];
+
+        document.getElementById('deal-btn').addEventListener('click', async () => {
+            let deck = [];
+            suits.forEach(s => values.forEach(v => deck.push({suit: s, val: v})));
+            deck.sort(() => Math.random() - 0.5); // シャッフル
+
+            // コミュニティカード5枚
+            const comCards = [deck.pop(), deck.pop(), deck.pop(), deck.pop(), deck.pop()];
+            await updateDoc(doc(db, "poker_rooms", roomId), { communityCards: comCards });
+
+            // 各参加者に2枚ずつ配る
+            for(let member of allMembers) {
+                const hand = [deck.pop(), deck.pop()];
+                await updateDoc(doc(db, "poker_rooms", roomId, "members", member.id), {
+                    cards: hand,
+                    status: 'READY'
+                });
+            }
+        });
+
+        // 【ホスト専用】ポットリセット
+        document.getElementById('reset-pot-btn').addEventListener('click', async () => {
+            if(!confirm("ポットを0にして次のゲームの準備をしますか？（チップは戻りません。手動で勝者にチップをあげた後に押してください）")) return;
+            await updateDoc(doc(db, "poker_rooms", roomId), { pot: 0, communityCards: [] });
+            for(let member of allMembers) {
+                await updateDoc(doc(db, "poker_rooms", roomId, "members", member.id), { cards: [], status: 'READY' });
+            }
+        });
     </script>
 </body>
 </html>
